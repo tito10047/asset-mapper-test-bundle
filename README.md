@@ -18,6 +18,22 @@ The bundle is auto-discovered by Symfony Flex. No additional configuration is re
 
 ## Usage
 
+### Testing Stimulus Controllers
+
+For testing Stimulus controllers, it is highly recommended to use the [@tito10047/stimulus-test-utils](https://tito10047.github.io/stimulus-test-utils) package. It provides a `render()` function and Testing-Library-like helpers (`getByRole`, `user.click`, etc.) specifically for Stimulus.
+
+Since you are using this bundle, you can manage your test dependencies entirely through AssetMapper (without `npm install` for your app dependencies):
+
+1. Add the test utilities and a DOM polyfill to your `importmap.php`:
+
+```bash
+php bin/console importmap:require @tito10047/stimulus-test-utils happy-dom
+```
+
+2. Configure your tests to use these packages. Because this bundle symlinks them into `node_modules`, Node's native test runner can find them.
+
+See the [full documentation](https://tito10047.github.io/stimulus-test-utils/guide/asset-mapper.html) for more details.
+
 ### Running JavaScript Tests
 
 Once installed, simply run your Node.js tests using the script defined in `package.json`:
@@ -87,8 +103,8 @@ when@dev:
 
 ## Requirements
 
-- PHP >= 8.4
-- Symfony >= 7.0
+- PHP >= 8.2
+- Symfony >= 6.4
 - Symfony AssetMapper component
 
 ## License
