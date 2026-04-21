@@ -1,0 +1,18 @@
+{
+    "name": "tito10047/asset-mapper-test-bundle",
+    "description": "A Symfony bundle that bridges the gap between Symfony AssetMapper and Node.js test runners by creating a symlink-based node_modules structure from your import map.",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Tito10047\\AssetMapperTestBundle\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Jozef Môstka",
+            "email": "jozef@mostka.sk"
+        }
+    ],
+    "require": {}
+}
