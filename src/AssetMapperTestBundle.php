@@ -11,7 +11,12 @@
 namespace Tito10047\AssetMapperTestBundle;
 
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+use Tito10047\AssetMapperTestBundle\DependencyInjection\AssetMapperTestExtension;
 
-class AssetMapperTestBundle extends AbstractBundle {
-
+class AssetMapperTestBundle extends AbstractBundle
+{
+    public function getContainerExtension(): AssetMapperTestExtension
+    {
+        return new AssetMapperTestExtension();
+    }
 }
