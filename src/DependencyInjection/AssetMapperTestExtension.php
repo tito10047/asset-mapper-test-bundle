@@ -7,8 +7,12 @@ use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\Filesystem\Filesystem;
+use Tito10047\AssetMapperTestBundle\Command\ExportImportmapCommand;
+use Tito10047\AssetMapperTestBundle\Command\InitCommand;
 use Tito10047\AssetMapperTestBundle\Command\SetupNodeModulesCommand;
+use Tito10047\AssetMapperTestBundle\Setup\ImportmapJsonExporter;
 use Tito10047\AssetMapperTestBundle\Setup\NodeModulesSetup;
+use Tito10047\AssetMapperTestBundle\Setup\PackageJsonGenerator;
 
 class AssetMapperTestExtension extends Extension implements PrependExtensionInterface
 {
@@ -27,6 +31,29 @@ class AssetMapperTestExtension extends Extension implements PrependExtensionInte
 
         $container->register(SetupNodeModulesCommand::class, SetupNodeModulesCommand::class)
             ->setArguments([new Reference(NodeModulesSetup::class)])
+            ->addTag('console.command');
+
+        $container->register(ImportmapJsonExporter::class, ImportmapJsonExporter::class)
+            ->setArguments([
+                '%asset_mapper_test.importmap_path%',
+                '%asset_mapper_test.vendor_dir%',
+                '%asset_mapper_test.project_dir%',
+                new Reference(Filesystem::class),
+                new Reference('monolog.logger.asset_mapper_test', ContainerBuilder::NULL_ON_INVALID_REFERENCE),
+            ]);
+
+        $container->register(ExportImportmapCommand::class, ExportImportmapCommand::class)
+            ->setArguments([new Reference(ImportmapJsonExporter::class)])
+            ->addTag('console.command');
+
+        $container->register(PackageJsonGenerator::class, PackageJsonGenerator::class)
+            ->setArguments([new Reference(Filesystem::class)]);
+
+        $container->register(InitCommand::class, InitCommand::class)
+            ->setArguments([
+                new Reference(PackageJsonGenerator::class),
+                '%asset_mapper_test.project_dir%',
+            ])
             ->addTag('console.command');
     }
 
