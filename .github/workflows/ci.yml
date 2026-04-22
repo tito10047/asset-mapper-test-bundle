@@ -63,4 +63,4 @@ jobs:
                     node-version: 20
 
             -   name: "Run JS Tests"
-                run: node --test tests/js/**/*.test.mjs
+                run: node --test 'tests/js/**/*.test.mjs'
