@@ -97,6 +97,14 @@ class InitCommand extends Command
             }
         }
 
+        if ($runner === Runner::Vitest && $result->vitestConfigPath !== null) {
+            if ($result->vitestConfigCreated) {
+                $io->writeln(sprintf('  → created <info>%s</info>', $result->vitestConfigPath));
+            } else {
+                $io->writeln(sprintf('  → kept existing <comment>%s</comment>', $result->vitestConfigPath));
+            }
+        }
+
         $io->writeln('');
         $io->writeln('Next steps:');
         $io->writeln('  1. <info>npm install</info>');

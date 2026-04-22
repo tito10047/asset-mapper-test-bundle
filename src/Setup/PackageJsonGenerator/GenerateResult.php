@@ -9,6 +9,8 @@ final class GenerateResult
         public readonly bool $packageJsonCreated,
         public readonly ?string $setupMjsPath,
         public readonly bool $setupMjsCreated,
+        public readonly ?string $vitestConfigPath = null,
+        public readonly bool $vitestConfigCreated = false,
     ) {
     }
 }

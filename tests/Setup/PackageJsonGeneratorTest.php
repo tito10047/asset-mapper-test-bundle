@@ -65,13 +65,14 @@ class PackageJsonGeneratorTest extends TestCase
         $this->assertArrayHasKey('vitest', $data['devDependencies']);
     }
 
-    public function testLoaderVitestRunnerStillExports(): void
+    public function testLoaderVitestRunnerUsesNodeOptionsForLoader(): void
     {
         $this->gen()->generate($this->tmpDir, Variant::Loader, Runner::Vitest);
 
         $data = json_decode(file_get_contents($this->tmpDir . '/package.json'), true);
         $this->assertStringContainsString('asset-mapper-test:export', $data['scripts']['pretest']);
-        $this->assertSame('vitest run', $data['scripts']['test']);
+        $this->assertStringContainsString('vitest run --node-options="--import ./vendor/', $data['scripts']['test']);
+        $this->assertStringContainsString('register.mjs"', $data['scripts']['test']);
     }
 
     public function testSetupMjsGeneratedOnlyForNodeRunner(): void

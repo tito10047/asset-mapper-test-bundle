@@ -48,7 +48,7 @@ php bin/console asset-mapper-test:init --variant=loader --runner=node
   "type": "module",
   "scripts": {
     "pretest": "php bin/console asset-mapper-test:setup",
-    "test":    "node --test tests/js/*.test.mjs"
+    "test":    "node --import ./tests/js/setup.mjs --test 'tests/js/**/*.test.mjs'"
   }
 }
 ```
@@ -64,7 +64,7 @@ npm test
   "type": "module",
   "scripts": {
     "pretest": "php bin/console asset-mapper-test:export",
-    "test":    "node --import ./vendor/tito10047/asset-mapper-test-bundle/src/Resources/loader/register.mjs --test tests/js/*.test.mjs"
+    "test":    "node --import ./vendor/tito10047/asset-mapper-test-bundle/src/Resources/loader/register.mjs --import ./tests/js/setup.mjs --test 'tests/js/**/*.test.mjs'"
   }
 }
 ```

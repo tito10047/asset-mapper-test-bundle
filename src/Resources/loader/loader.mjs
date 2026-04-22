@@ -89,7 +89,7 @@ export async function load(url, context, nextLoad) {
     if (context.format) {
         return nextLoad(url, context);
     }
-    if (url.startsWith('file:') && url.endsWith('.js')) {
+    if (url.startsWith('file:') && url.endsWith('.js') && !url.includes('/node_modules/')) {
         return nextLoad(url, { ...context, format: 'module' });
     }
     return nextLoad(url, context);

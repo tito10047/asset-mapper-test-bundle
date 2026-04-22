@@ -18,9 +18,13 @@ use Tito10047\AssetMapperTestBundle\Setup\PackageJsonGenerator\Variant;
 final class PackageJsonGenerator
 {
     public const SETUP_MJS_RELATIVE = 'tests/js/setup.mjs';
+    public const VITEST_CONFIG_RELATIVE = 'vitest.config.js';
 
     private const LOADER_REGISTER_PATH =
         './vendor/tito10047/asset-mapper-test-bundle/src/Resources/loader/register.mjs';
+
+    private const VITE_PLUGIN_PATH =
+        './vendor/tito10047/asset-mapper-test-bundle/src/Resources/loader/vite-plugin.mjs';
 
     public function __construct(
         private readonly Filesystem $filesystem,
@@ -58,11 +62,24 @@ final class PackageJsonGenerator
             }
         }
 
+        $vitestConfigPath = null;
+        $vitestConfigCreated = false;
+
+        if ($runner === Runner::Vitest) {
+            $vitestConfigPath = $projectDir . '/' . self::VITEST_CONFIG_RELATIVE;
+            if ($force || !$this->filesystem->exists($vitestConfigPath)) {
+                $this->filesystem->dumpFile($vitestConfigPath, $this->buildVitestConfig($variant));
+                $vitestConfigCreated = true;
+            }
+        }
+
         return new GenerateResult(
             $packageJsonPath,
             $packageJsonCreated,
             $setupMjsPath,
             $setupMjsCreated,
+            $vitestConfigPath,
+            $vitestConfigCreated,
         );
     }
 
@@ -92,7 +109,12 @@ final class PackageJsonGenerator
     private function buildTestScript(Variant $variant, Runner $runner): string
     {
         if ($runner === Runner::Vitest) {
-            return 'vitest run';
+            $script = 'vitest run';
+            if ($variant === Variant::Loader) {
+                $script = 'NODE_OPTIONS="--import ' . self::LOADER_REGISTER_PATH . '" ' . $script;
+            }
+
+            return $script;
         }
 
         $parts = ['node'];
@@ -135,5 +157,27 @@ final class PackageJsonGenerator
             globalThis.Event = window.Event
 
             JS;
+    }
+
+    private function buildVitestConfig(Variant $variant): string
+    {
+        $pluginsCode = '';
+        $importCode = '';
+        
+        if ($variant === Variant::Loader) {
+            $importCode = "import { assetMapperVitePlugin } from '" . self::VITE_PLUGIN_PATH . "';\n";
+            $pluginsCode = "    plugins: [assetMapperVitePlugin()],\n";
+        }
+        
+        return <<<JS
+{$importCode}import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+{$pluginsCode}    test: {
+        dir: 'tests/js',
+        environment: 'happy-dom',
+    },
+});
+JS;
     }
 }
