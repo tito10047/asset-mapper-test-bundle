@@ -49,3 +49,11 @@ jobs:
 
             -   name: "Run PHPUnit"
                 run: vendor/bin/phpunit tests/ --no-coverage
+
+            -   name: "Setup Node.js"
+                uses: actions/setup-node@v4
+                with:
+                    node-version: 20
+
+            -   name: "Run JS Tests"
+                run: node --test tests/js/**/*.test.mjs

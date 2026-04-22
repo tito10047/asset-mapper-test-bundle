@@ -12,6 +12,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Tito10047\AssetMapperTestBundle\Setup\PackageJsonGenerator;
 use Tito10047\AssetMapperTestBundle\Setup\PackageJsonGenerator\Runner;
 use Tito10047\AssetMapperTestBundle\Setup\PackageJsonGenerator\Variant;
+use Tito10047\AssetMapperTestBundle\Setup\PackageJsonGenerator\Deps;
+use Symfony\Component\Process\Process;
 
 /**
  * Scaffolds a `package.json` (and optionally `tests/js/setup.mjs`) tailored to
@@ -38,6 +40,7 @@ class InitCommand extends Command
         $this
             ->addOption('variant', null, InputOption::VALUE_REQUIRED, 'Workflow variant: symlink | loader')
             ->addOption('runner', null, InputOption::VALUE_REQUIRED, 'JS test runner: node | vitest')
+            ->addOption('deps', null, InputOption::VALUE_REQUIRED, 'Dependency management: node_modules | asset_mapper')
             ->addOption('force', null, InputOption::VALUE_NONE, 'Overwrite existing package.json');
     }
 
@@ -67,6 +70,36 @@ class InitCommand extends Command
         $variant = Variant::tryFrom((string) $variantRaw);
         $runner = Runner::tryFrom((string) $runnerRaw);
 
+        $depsRaw = $input->getOption('deps');
+        if ($variant === Variant::Loader && $depsRaw === null && $input->isInteractive()) {
+            $depsRaw = $io->choice(
+                'How do you want to manage test dependencies (like happy-dom/vitest)?',
+                ['node_modules', 'asset_mapper'],
+                'node_modules',
+            );
+        }
+        $deps = Deps::tryFrom((string) $depsRaw) ?? Deps::NodeModules;
+
+        if ($runner === Runner::Vitest && $deps === Deps::AssetMapper) {
+            $err->writeln('<error>Using Vitest with AssetMapper dependencies is not supported because Vitest has complex internal dependencies that cannot be reliably bundled.</error>');
+            if ($input->isInteractive()) {
+                $fallbackNode = 'Use Node.js built-in test runner (runner=node)';
+                $fallbackNpm = 'Manage test dependencies via npm (deps=node_modules)';
+                $fallback = $io->choice(
+                    'How would you like to proceed?',
+                    [$fallbackNode, $fallbackNpm]
+                );
+                
+                if ($fallback === $fallbackNode) {
+                    $runner = Runner::Node;
+                } else {
+                    $deps = Deps::NodeModules;
+                }
+            } else {
+                return Command::FAILURE;
+            }
+        }
+
         if ($variant === null) {
             $err->writeln(sprintf('<error>Invalid variant "%s". Use "symlink" or "loader".</error>', (string) $variantRaw));
             return Command::FAILURE;
@@ -80,8 +113,25 @@ class InitCommand extends Command
             $this->projectDir,
             $variant,
             $runner,
+            $deps,
             (bool) $input->getOption('force'),
         );
+
+        if ($deps === Deps::AssetMapper) {
+            $io->writeln('Adding test dependencies to AssetMapper...');
+            $packages = ['happy-dom'];
+            if ($runner === Runner::Vitest) {
+                $packages[] = 'vitest';
+            }
+            $process = new Process(['php', 'bin/console', 'importmap:require', ...$packages], $this->projectDir);
+            $process->run(function ($type, $buffer) use ($io) {
+                $io->write($buffer);
+            });
+            
+            if (!$process->isSuccessful()) {
+                $err->writeln('<error>Failed to add dependencies to AssetMapper.</error>');
+            }
+        }
 
         if ($result->packageJsonCreated) {
             $io->success(sprintf('Wrote %s', $result->packageJsonPath));

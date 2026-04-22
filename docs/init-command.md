@@ -19,6 +19,7 @@ The command asks two questions:
 2. **Which JS test runner?**
    - `node` — Node's built-in test runner (`node --test`). Requires Node ≥ 20.
    - `vitest` — [Vitest] (`vitest run`).
+     *Note: Using Vitest with test dependencies managed via AssetMapper (`--deps=asset_mapper`) is not supported because Vitest has complex internal dependencies that cannot be reliably bundled.*
 
 ### Non-interactive (CI)
 

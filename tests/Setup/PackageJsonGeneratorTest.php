@@ -71,8 +71,8 @@ class PackageJsonGeneratorTest extends TestCase
 
         $data = json_decode(file_get_contents($this->tmpDir . '/package.json'), true);
         $this->assertStringContainsString('asset-mapper-test:export', $data['scripts']['pretest']);
-        $this->assertStringContainsString('vitest run --node-options="--import ./vendor/', $data['scripts']['test']);
-        $this->assertStringContainsString('register.mjs"', $data['scripts']['test']);
+        $this->assertStringContainsString('NODE_OPTIONS="--import ./vendor/', $data['scripts']['test']);
+        $this->assertStringContainsString('register.mjs" vitest run', $data['scripts']['test']);
     }
 
     public function testSetupMjsGeneratedOnlyForNodeRunner(): void
@@ -84,7 +84,7 @@ class PackageJsonGeneratorTest extends TestCase
         $this->assertTrue($result->setupMjsCreated);
 
         $content = file_get_contents($setupPath);
-        $this->assertStringContainsString("import { Window } from 'happy-dom'", $content);
+        $this->assertStringContainsString("import * as happyDom from 'happy-dom'", $content);
         $this->assertStringContainsString('globalThis.window = window', $content);
         $this->assertStringContainsString('globalThis.document = window.document', $content);
         $this->assertStringContainsString('globalThis.HTMLElement = window.HTMLElement', $content);

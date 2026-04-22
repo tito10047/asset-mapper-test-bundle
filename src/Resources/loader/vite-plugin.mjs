@@ -36,7 +36,11 @@ export function assetMapperVitePlugin() {
             
             const [pkg, sub] = splitPkg(source);
             if (sub && entries[pkg]?.kind === 'dir') {
-                return join(entries[pkg].path, sub);
+                let filePath = join(entries[pkg].path, sub);
+                if (!existsSync(filePath) && existsSync(filePath + '.js')) {
+                    filePath += '.js';
+                }
+                return filePath;
             }
             
             return null;

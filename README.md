@@ -1,5 +1,6 @@
 # AssetMapper Test Bundle
 
+[![CI](https://github.com/tito10047/asset-mapper-test-bundle/actions/workflows/ci.yml/badge.svg)](https://github.com/tito10047/asset-mapper-test-bundle/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
 Run **Node.js tests** against packages managed by **Symfony AssetMapper** —

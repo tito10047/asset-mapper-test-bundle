@@ -62,15 +62,13 @@ class ImportmapResolver
         }
 
         $sourcePath = $this->vendorDir . '/' . $name;
-        if (!file_exists($sourcePath)) {
-            $this->logger()->debug('Skipping "{name}": not present in vendor dir ({path})', [
-                'name' => $name,
-                'path' => $sourcePath,
-            ]);
-            return null;
+        
+        // 2) Single file in vendor directly, try with .js extension first
+        // jsDelivr often saves bare specifier as a file.js, while a directory with same name may exist
+        if (is_file($sourcePath . '.js')) {
+            return new ImportmapEntry($name, ImportmapEntry::KIND_FILE, $sourcePath . '.js');
         }
 
-        // 2) Single file in vendor directly
         if (is_file($sourcePath)) {
             return new ImportmapEntry($name, ImportmapEntry::KIND_FILE, $sourcePath);
         }
@@ -90,6 +88,11 @@ class ImportmapResolver
             // 5) Fallback: treat as directory anyway (consistent with SymlinkCreator directory symlink)
             return new ImportmapEntry($name, ImportmapEntry::KIND_DIR, $sourcePath);
         }
+
+        $this->logger()->debug('Skipping "{name}": not present in vendor dir ({path})', [
+            'name' => $name,
+            'path' => $sourcePath,
+        ]);
 
         return null;
     }

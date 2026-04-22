@@ -70,8 +70,13 @@ export async function resolve(specifier, context, nextResolve) {
     // 2) Subpath (scope-aware): "happy-dom/lib/Foo.js" or "@scope/pkg/sub/file.js"
     const [pkg, sub] = splitPkg(specifier);
     if (sub && entries[pkg]?.kind === 'dir') {
+        let filePath = join(entries[pkg].path, sub);
+        if (!existsSync(filePath) && existsSync(filePath + '.js')) {
+            filePath += '.js';
+        }
+        
         return {
-            url: toFileUrl(join(entries[pkg].path, sub)),
+            url: toFileUrl(filePath),
             format: 'module',
             shortCircuit: true,
         };

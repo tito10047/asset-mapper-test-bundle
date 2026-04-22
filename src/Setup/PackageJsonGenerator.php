@@ -6,6 +6,7 @@ use Symfony\Component\Filesystem\Filesystem;
 use Tito10047\AssetMapperTestBundle\Setup\PackageJsonGenerator\GenerateResult;
 use Tito10047\AssetMapperTestBundle\Setup\PackageJsonGenerator\Runner;
 use Tito10047\AssetMapperTestBundle\Setup\PackageJsonGenerator\Variant;
+use Tito10047\AssetMapperTestBundle\Setup\PackageJsonGenerator\Deps;
 
 /**
  * Generates a starter `package.json` (and, when using Node's built-in test
@@ -35,6 +36,7 @@ final class PackageJsonGenerator
         string $projectDir,
         Variant $variant,
         Runner $runner,
+        Deps $deps = Deps::NodeModules,
         bool $force = false,
     ): GenerateResult {
         $packageJsonPath = $projectDir . '/package.json';
@@ -44,7 +46,7 @@ final class PackageJsonGenerator
             $this->filesystem->dumpFile(
                 $packageJsonPath,
                 json_encode(
-                    $this->buildPackageJson($variant, $runner),
+                    $this->buildPackageJson($variant, $runner, $deps),
                     JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
                 ) . "\n"
             );
@@ -68,7 +70,7 @@ final class PackageJsonGenerator
         if ($runner === Runner::Vitest) {
             $vitestConfigPath = $projectDir . '/' . self::VITEST_CONFIG_RELATIVE;
             if ($force || !$this->filesystem->exists($vitestConfigPath)) {
-                $this->filesystem->dumpFile($vitestConfigPath, $this->buildVitestConfig($variant));
+                $this->filesystem->dumpFile($vitestConfigPath, $this->buildVitestConfig($variant, $deps));
                 $vitestConfigCreated = true;
             }
         }
@@ -86,16 +88,21 @@ final class PackageJsonGenerator
     /**
      * @return array<string, mixed>
      */
-    private function buildPackageJson(Variant $variant, Runner $runner): array
+    private function buildPackageJson(Variant $variant, Runner $runner, Deps $deps): array
     {
-        return [
+        $package = [
             'type' => 'module',
             'scripts' => [
                 'pretest' => $this->buildPretestScript($variant),
-                'test' => $this->buildTestScript($variant, $runner),
+                'test' => $this->buildTestScript($variant, $runner, $deps),
             ],
-            'devDependencies' => $this->buildDevDependencies($runner),
         ];
+
+        if ($deps === Deps::NodeModules) {
+            $package['devDependencies'] = $this->buildDevDependencies($runner);
+        }
+
+        return $package;
     }
 
     private function buildPretestScript(Variant $variant): string
@@ -106,10 +113,10 @@ final class PackageJsonGenerator
         };
     }
 
-    private function buildTestScript(Variant $variant, Runner $runner): string
+    private function buildTestScript(Variant $variant, Runner $runner, Deps $deps): string
     {
         if ($runner === Runner::Vitest) {
-            $script = 'vitest run';
+            $script = $deps === Deps::AssetMapper ? 'npx vitest run' : 'vitest run';
             if ($variant === Variant::Loader) {
                 $script = 'NODE_OPTIONS="--import ' . self::LOADER_REGISTER_PATH . '" ' . $script;
             }
@@ -135,7 +142,10 @@ final class PackageJsonGenerator
      */
     private function buildDevDependencies(Runner $runner): array
     {
-        $deps = ['happy-dom' => '^15.0.0'];
+        $deps = [
+			'happy-dom' => '^15.0.0',
+			"@tito10047/stimulus-test-utils"=> "^0.1.0"
+		];
 
         if ($runner === Runner::Vitest) {
             $deps['vitest'] = '^2.0.0';
@@ -148,8 +158,9 @@ final class PackageJsonGenerator
     private function buildSetupMjs(): string
     {
         return <<<'JS'
-            import { Window } from 'happy-dom'
+            import * as happyDom from 'happy-dom'
 
+            const Window = happyDom.Window || (happyDom.default && happyDom.default.Window);
             const window = new Window()
             globalThis.window = window
             globalThis.document = window.document
@@ -159,7 +170,7 @@ final class PackageJsonGenerator
             JS;
     }
 
-    private function buildVitestConfig(Variant $variant): string
+    private function buildVitestConfig(Variant $variant, Deps $deps): string
     {
         $pluginsCode = '';
         $importCode = '';
@@ -169,6 +180,17 @@ final class PackageJsonGenerator
             $pluginsCode = "    plugins: [assetMapperVitePlugin()],\n";
         }
         
+        if ($deps === Deps::AssetMapper) {
+            return <<<JS
+{$importCode}export default {
+{$pluginsCode}    test: {
+        dir: 'tests/js',
+        environment: 'happy-dom',
+    },
+};
+JS;
+        }
+
         return <<<JS
 {$importCode}import { defineConfig } from 'vitest/config';
 
