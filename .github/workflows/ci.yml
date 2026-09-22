@@ -22,7 +22,7 @@ jobs:
                 symfony:
                     - "6.4.*"
                     - "7.4.*"
-                    - "8.0.*"
+                    - "8..*"
 
         steps:
             -   name: Checkout
