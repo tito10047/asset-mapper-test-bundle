@@ -120,13 +120,18 @@ Used as the currency between resolver and any consumer.
 
 Pure resolver. Given `['happy-dom' => ['version' => '…']]` it inspects
 `assets/vendor/happy-dom/`, classifies it as dir/file, and returns an
-`ImportmapEntry`. See the [resolution rules](./symlink-variant.md#resolution-rules-exact-behavior).
+`ImportmapEntry`. Entries with `type: 'css'` resolve to `null` (skipped) —
+they are useless to Node.js tests and would shadow the package's JS entry.
+See the [resolution rules](./symlink-variant.md#resolution-rules-exact-behavior).
 
 ### `Setup/SymlinkCreator`
 
 Consumes one `ImportmapEntry` at a time and creates the corresponding
 symlink (plus a stub `package.json` for single-file packages). Uses Symfony
-`Filesystem`.
+`Filesystem`. Two safeguards: it refuses to write through an existing
+symlink under `node_modules/` (which would contaminate `assets/vendor/`),
+and it skips subpath file entries (`jquery-ui/ui/widgets/sortable`) that
+would otherwise clobber the package's own `index.js`.
 
 ### `Setup/NodeModulesSetup`
 
@@ -183,8 +188,8 @@ Thin entry point, meant to be passed to `node --import`.
 
 | Layer               | What we test                                                 | Runner                    |
 |---------------------|--------------------------------------------------------------|---------------------------|
-| `ImportmapResolver` | All five resolution branches with fs fixtures in `tmp/`       | PHPUnit (`tests/Setup/…`) |
-| `SymlinkCreator`    | Actual symlink creation, scoped packages, idempotency         | PHPUnit                   |
+| `ImportmapResolver` | All resolution branches (incl. css skip, `<basename>.index.js`) with fs fixtures in `tmp/` | PHPUnit (`tests/Setup/…`) |
+| `SymlinkCreator`    | Actual symlink creation, scoped packages, idempotency, symlink write-through guard | PHPUnit          |
 | `NodeModulesSetup`  | End-to-end from `importmap.php` array to `node_modules/` tree | PHPUnit                   |
 | `ImportmapJsonExporter` | JSON shape, output path, error on missing importmap       | PHPUnit                   |
 | `SetupNodeModulesCommand` | Exit codes, stderr on failure                           | PHPUnit                   |

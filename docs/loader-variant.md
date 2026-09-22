@@ -48,6 +48,11 @@ npm test
 }
 ```
 
+Entries with `type: 'css'` in `importmap.php` are not exported — CSS is
+useless to a Node.js test runner, and such entries would shadow the
+package's JS entry (see the shared
+[resolution rules](./symlink-variant.md#resolution-rules-exact-behavior)).
+
 Default output path: `var/asset-mapper-test/importmap.json`.
 Override with the `ASSET_MAPPER_IMPORTMAP` environment variable if your project
 layout demands it.

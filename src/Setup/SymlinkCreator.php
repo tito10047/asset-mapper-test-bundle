@@ -62,9 +62,24 @@ class SymlinkCreator
 
     private function linkFile(ImportmapEntry $entry): SymlinkResult
     {
+        // Subpath entries (e.g. 'jquery-ui/ui/widgets/sortable') would compete
+        // with the package's own entry for node_modules/<pkg>/index.js, and the
+        // resulting stub never resolves the subpath specifier anyway (that
+        // would require an "exports" map). Skip them instead of clobbering.
+        if ($this->hasSubpath($entry->name)) {
+            $this->logger()->info('Skipping "{name}": subpath entries are not supported by the symlink variant', [
+                'name' => $entry->name,
+            ]);
+            return SymlinkResult::Skipped;
+        }
+
         // Single-file packages are wrapped in <pkg>/index.js + package.json
         // so Node's legacy CommonJS-style resolver can find them.
-        $targetDir = $this->nodeModulesDir . '/' . $this->packageDirName($entry->name);
+        $targetDir = $this->nodeModulesDir . '/' . $entry->name;
+
+        if ($this->isInsideSymlink($targetDir)) {
+            return $this->refuseSymlinkedTarget($entry, $targetDir);
+        }
 
         $this->ensureParentDir($targetDir);
 
@@ -95,6 +110,10 @@ class SymlinkCreator
     {
         $targetDir = $this->nodeModulesDir . '/' . $entry->name;
 
+        if ($this->isInsideSymlink(\dirname($targetDir))) {
+            return $this->refuseSymlinkedTarget($entry, $targetDir);
+        }
+
         $this->ensureParentDir($targetDir);
 
         if ($this->filesystem->exists($targetDir)) {
@@ -107,15 +126,37 @@ class SymlinkCreator
     }
 
     /**
-     * Scoped packages keep the "@scope/name" layout; flat names only need the
-     * bare package name (sub-path parts are dropped by design — see old logic).
+     * True when the entry name addresses something inside a package
+     * ('pkg/sub/file', '@scope/pkg/sub') rather than the package itself.
      */
-    private function packageDirName(string $name): string
+    private function hasSubpath(string $name): bool
     {
-        if (str_starts_with($name, '@')) {
-            return $name;
+        return substr_count($name, '/') > (str_starts_with($name, '@') ? 1 : 0);
+    }
+
+    /**
+     * True when $path, or any of its ancestors below node_modules/, is a
+     * symlink. Writing "through" such a symlink would land outside
+     * node_modules/ — typically inside assets/vendor/, permanently
+     * contaminating the project's source assets.
+     */
+    private function isInsideSymlink(string $path): bool
+    {
+        for ($dir = $path; $dir !== $this->nodeModulesDir && $dir !== \dirname($dir); $dir = \dirname($dir)) {
+            if (is_link($dir)) {
+                return true;
+            }
         }
-        return explode('/', $name)[0];
+        return false;
+    }
+
+    private function refuseSymlinkedTarget(ImportmapEntry $entry, string $targetDir): SymlinkResult
+    {
+        $this->logger()->warning('Skipping "{name}": refusing to write through existing symlink at "{target}"', [
+            'name' => $entry->name,
+            'target' => $targetDir,
+        ]);
+        return SymlinkResult::Skipped;
     }
 
     private function ensureParentDir(string $targetDir): void

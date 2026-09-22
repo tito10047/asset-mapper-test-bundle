@@ -48,6 +48,16 @@ class ImportmapResolver
      */
     public function resolveEntry(string $name, array $config): ?ImportmapEntry
     {
+        // 0) CSS entries are useless to a Node.js test runner, and mapping them
+        //    would shadow the package's JS entry (e.g. 'toastr/build/toastr.min.css'
+        //    competing with 'toastr' for node_modules/toastr/index.js).
+        if (($config['type'] ?? null) === 'css') {
+            $this->logger()->debug('Skipping "{name}": css entries are not resolved for Node.js tests', [
+                'name' => $name,
+            ]);
+            return null;
+        }
+
         // 1) Local path entry (e.g. { path: './assets/app.js' })
         if (isset($config['path'])) {
             $file = $this->projectDir . '/' . ltrim((string) $config['path'], './');
@@ -77,6 +87,16 @@ class ImportmapResolver
             // 3) Directory with index.js → directory entry
             if (file_exists($sourcePath . '/index.js')) {
                 return new ImportmapEntry($name, ImportmapEntry::KIND_DIR, $sourcePath);
+            }
+
+            // 3b) AssetMapper vendor naming: entry file stored as <basename>.index.js
+            //     next to its chunk files (e.g. @hotwired/stimulus →
+            //     stimulus.index.js + stimulus.index-<hash>.js), so rule 4 below
+            //     would not match and the package would fall through to a bare
+            //     directory that Node cannot resolve.
+            $basename = ($pos = strrpos($name, '/')) !== false ? substr($name, $pos + 1) : $name;
+            if (is_file($sourcePath . '/' . $basename . '.index.js')) {
+                return new ImportmapEntry($name, ImportmapEntry::KIND_FILE, $sourcePath . '/' . $basename . '.index.js');
             }
 
             // 4) Directory with a single *.js file → promote that file

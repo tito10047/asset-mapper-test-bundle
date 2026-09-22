@@ -97,6 +97,74 @@ class ImportmapResolverTest extends TestCase
         $this->assertSame($pkgDir, $entry->path);
     }
 
+    public function testResolvesAssetMapperBasenameIndexJsAsFile(): void
+    {
+        $pkgDir = $this->vendorDir . '/stimulus';
+        $this->filesystem->mkdir($pkgDir);
+        $this->filesystem->dumpFile($pkgDir . '/stimulus.index.js', 'export default {}');
+        $this->filesystem->dumpFile($pkgDir . '/stimulus.index-S4zNcea.js', 'export default {}');
+
+        $entry = $this->makeResolver()->resolveEntry('stimulus', ['version' => '3.2.2']);
+
+        $this->assertNotNull($entry);
+        $this->assertSame(ImportmapEntry::KIND_FILE, $entry->kind);
+        $this->assertSame($pkgDir . '/stimulus.index.js', $entry->path);
+    }
+
+    public function testResolvesScopedAssetMapperBasenameIndexJsAsFile(): void
+    {
+        $pkgDir = $this->vendorDir . '/@hotwired/stimulus';
+        $this->filesystem->mkdir($pkgDir);
+        $this->filesystem->dumpFile($pkgDir . '/stimulus.index.js', 'export default {}');
+        $this->filesystem->dumpFile($pkgDir . '/stimulus.index-S4zNcea.js', 'export default {}');
+
+        $entry = $this->makeResolver()->resolveEntry('@hotwired/stimulus', ['version' => '3.2.2']);
+
+        $this->assertNotNull($entry);
+        $this->assertSame(ImportmapEntry::KIND_FILE, $entry->kind);
+        $this->assertSame($pkgDir . '/stimulus.index.js', $entry->path);
+    }
+
+    public function testIndexJsWinsOverBasenameIndexJs(): void
+    {
+        $pkgDir = $this->vendorDir . '/pkg';
+        $this->filesystem->mkdir($pkgDir);
+        $this->filesystem->dumpFile($pkgDir . '/index.js', 'export default {}');
+        $this->filesystem->dumpFile($pkgDir . '/pkg.index.js', 'export default {}');
+
+        $entry = $this->makeResolver()->resolveEntry('pkg', ['version' => '1.0']);
+
+        $this->assertNotNull($entry);
+        $this->assertSame(ImportmapEntry::KIND_DIR, $entry->kind);
+        $this->assertSame($pkgDir, $entry->path);
+    }
+
+    public function testSkipsCssEntries(): void
+    {
+        $cssFile = $this->vendorDir . '/toastr/build/toastr.min.css';
+        $this->filesystem->dumpFile($cssFile, 'body {}');
+
+        $entry = $this->makeResolver()->resolveEntry(
+            'toastr/build/toastr.min.css',
+            ['version' => '2.1.4', 'type' => 'css'],
+        );
+
+        $this->assertNull($entry);
+    }
+
+    public function testSkipsLocalCssEntries(): void
+    {
+        $cssFile = $this->projectDir . '/assets/styles/app.css';
+        $this->filesystem->dumpFile($cssFile, 'body {}');
+
+        $entry = $this->makeResolver()->resolveEntry(
+            'app-styles',
+            ['path' => './assets/styles/app.css', 'type' => 'css'],
+        );
+
+        $this->assertNull($entry);
+    }
+
     public function testResolveIteratesWholeImportmap(): void
     {
         $this->filesystem->dumpFile($this->projectDir . '/assets/app.js', '');

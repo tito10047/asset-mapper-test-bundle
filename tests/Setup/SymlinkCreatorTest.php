@@ -114,6 +114,74 @@ class SymlinkCreatorTest extends TestCase
         $this->assertTrue(is_link($this->nodeModulesDir . '/@tonejs/midi'));
     }
 
+    public function testCssEntryNeverClobbersPackageEntryRegardlessOfOrder(): void
+    {
+        $pkgDir = $this->vendorDir . '/toastr';
+        $jsFile = $pkgDir . '/toastr.index.js';
+        $this->filesystem->dumpFile($jsFile, 'export default {}');
+        $this->filesystem->dumpFile($pkgDir . '/build/toastr.min.css', 'body {}');
+
+        $orders = [
+            ['toastr', 'toastr/build/toastr.min.css'],
+            ['toastr/build/toastr.min.css', 'toastr'],
+        ];
+
+        foreach ($orders as $order) {
+            $this->filesystem->remove($this->nodeModulesDir);
+            $this->filesystem->mkdir($this->nodeModulesDir);
+            $creator = $this->makeCreator();
+
+            foreach ($order as $name) {
+                $config = str_ends_with($name, '.css')
+                    ? ['version' => '2.1.4', 'type' => 'css']
+                    : ['version' => '2.1.4'];
+                $creator->create($name, $config);
+            }
+
+            $link = $this->nodeModulesDir . '/toastr/index.js';
+            $this->assertTrue(is_link($link), 'order: ' . implode(', ', $order));
+            $this->assertSame($jsFile, readlink($link), 'order: ' . implode(', ', $order));
+        }
+    }
+
+    public function testRefusesToWriteThroughSymlinkedPackageDir(): void
+    {
+        $pkgDir = $this->vendorDir . '/toastr';
+        $this->filesystem->dumpFile($pkgDir . '/toastr.index.js', 'export default {}');
+        $this->filesystem->symlink($pkgDir, $this->nodeModulesDir . '/toastr');
+
+        $result = $this->makeCreator()->create('toastr', ['version' => '2.1.4']);
+
+        $this->assertSame(SymlinkResult::Skipped, $result);
+        $this->assertFileDoesNotExist($pkgDir . '/index.js');
+        $this->assertFileDoesNotExist($pkgDir . '/package.json');
+    }
+
+    public function testRefusesToWriteIntoSymlinkedScopeDir(): void
+    {
+        $scopeDir = $this->vendorDir . '/@scope';
+        $this->filesystem->dumpFile($scopeDir . '/pkg.js', 'export default {}');
+        $this->filesystem->symlink($scopeDir, $this->nodeModulesDir . '/@scope');
+
+        $result = $this->makeCreator()->create('@scope/pkg', ['version' => '1.0.0']);
+
+        $this->assertSame(SymlinkResult::Skipped, $result);
+        $this->assertFileDoesNotExist($scopeDir . '/pkg');
+    }
+
+    public function testSkipsSubpathFileEntries(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->vendorDir . '/jquery-ui/ui/widgets/sortable.js',
+            'export default {}',
+        );
+
+        $result = $this->makeCreator()->create('jquery-ui/ui/widgets/sortable', ['version' => '1.13.2']);
+
+        $this->assertSame(SymlinkResult::Skipped, $result);
+        $this->assertFileDoesNotExist($this->nodeModulesDir . '/jquery-ui');
+    }
+
     public function testCreatesPackageJsonForFileSymlink(): void
     {
         $jsFile = $this->projectDir . '/assets/app.js';
